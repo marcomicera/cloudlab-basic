@@ -18,9 +18,9 @@ pc = portal.Context()
 # dashboard.
 images = [ ("UBUNTU16-64-STD", "Ubuntu 16.04") ]
 
-# The possible set of node-types this cluster can be configured with. Currently
-# only m510 machines are supported.
+# The possible set of node-types this cluster can be configured with.
 hardware_types = [ ("m510", "m510 (CloudLab Utah, 8-Core Intel Xeon D-1548)")
+                   ,("c6420", "c6420 (CloudLab Clemson, two 16-Core Intel Xeon Gold 6142)")
                    #,("d430", "d430 (Emulab, 8-Core Intel Xeon E5-2630v3)")
                    ]
 
