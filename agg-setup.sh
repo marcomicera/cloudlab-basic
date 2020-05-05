@@ -48,6 +48,10 @@ echo -e "\n===== INSTALLING COMMON UTILITIES ====="
 apt-get update
 apt-get --assume-yes install vim htop bmon
 # openvswitch-switch
+echo -e "\n===== INSTALLING Docker ====="
+apt-get --assume-yes install docker.io
+gpasswd -a "$USER" docker
+newgrp docker
 
 # === Configuration settings for all machines ===
 # Make vim the default editor.

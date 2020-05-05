@@ -71,6 +71,10 @@ echo -e "\n===== INSTALLING NFS PACKAGES ====="
 apt-get --assume-yes install nfs-kernel-server nfs-common
 echo -e "\n===== INSTALLING basic PACKAGES ====="
 apt-get --assume-yes install python2.7 python-requests openjdk-8-jre ack-grep python-minimal  iperf3
+echo -e "\n===== INSTALLING Docker ====="
+apt-get --assume-yes install docker.io
+gpasswd -a "$USER" docker
+newgrp docker
 
 # create new admin user
 useradd -p `mkpasswd "test"` -d /home/"$USER_EXP" -m -g users -s /bin/bash "$USER_EXP"
