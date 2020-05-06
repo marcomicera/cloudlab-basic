@@ -15,7 +15,7 @@ echo
 # === Parameters decided by profile.py ===
 # RCNFS partition that will be exported via NFS and used as a shared home
 # Account in which various software should be setup.
-USERNAME=$1
+CLOUDLAB_USER=$1
 
 # === Paarameters decided by this script. ===
 # Directory where the NFS partition will be mounted on NFS clients
@@ -24,6 +24,7 @@ USERNAME=$1
 # Other variables
 KERNEL_RELEASE=`uname -r`
 UBUNTU_RELEASE=`lsb_release --release | awk '{print $2}'`
+USER_EXP="ubuntu"
 
 # === Here goes configuration that's performed on every boot. ===
 
@@ -46,12 +47,19 @@ fi
 # Common utilities
 echo -e "\n===== INSTALLING COMMON UTILITIES ====="
 apt-get update
-apt-get --assume-yes install vim htop bmon
+apt-get --assume-yes install vim htop bmon whois
 # openvswitch-switch
 echo -e "\n===== INSTALLING Docker ====="
 apt-get --assume-yes install docker.io
 gpasswd -a "$USER" docker
 newgrp docker
+
+# create new admin user
+useradd -p `mkpasswd "test"` -d /home/"$USER_EXP" -m -g users -s /bin/bash "$USER_EXP"
+passwd -d $USER_EXP
+gpasswd -a $USER_EXP root
+
+#chown -R "$USER_EXP:" "$NODE_LOCAL_STORAGE_DIR"
 
 # === Configuration settings for all machines ===
 # Make vim the default editor.
@@ -72,6 +80,19 @@ do
   chsh -s /bin/bash $user
 done
 
+echo -e "\n===== SETTING UP SSH BETWEEN NODES ====="
+ssh_dir=/home/$USER_EXP/.ssh
+mkdir "$ssh_dir"
+/usr/bin/geni-get key > $ssh_dir/id_rsa
+chown $USER_EXP: $ssh_dir/id_rsa
+chmod 600 $ssh_dir/id_rsa
+
+ssh-keygen -y -f $ssh_dir/id_rsa > $ssh_dir/id_rsa.pub
+cat $ssh_dir/id_rsa.pub >> $ssh_dir/authorized_keys
+cat "/users/$CLOUDLAB_USER/.ssh/authorized_keys" >> $ssh_dir/authorized_keys
+chown $USER_EXP: $ssh_dir/authorized_keys
+chown -R $USER_EXP: $ssh_dir
+chmod 644 $ssh_dir/authorized_keys
 
 
 # Mark that setup has finished. This script is actually run again after a
