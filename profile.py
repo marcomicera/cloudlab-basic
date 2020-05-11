@@ -20,9 +20,11 @@ images = [("UBUNTU18-64-STD", "Ubuntu 18.04")]
 
 # The possible set of node-types this cluster can be configured with.
 c6420 = ("c6420", "c6420 (CloudLab Clemson, two 16-Core Intel Xeon Gold 6142)")
+c6320 = ("c6320", "c6320 (CloudLab Clemson, two 14-Core Intel E5-2683 v3)")
 c8220 = ("c8220", "c8220 (CloudLab Clemson, two 10-Core 2.20 GHz Ivy Bridge)")
 d430 = ("d430", "d430 (Emulab, 8-Core Intel Xeon E5-2630v3)")
-worker_hardware_types = [c6420, c8220]
+worker_hardware_types = [c6420, c6320, c8220]
+agg_hardware_types = [c6320, c8220]
 
 # Create a portal context.
 pc = portal.Context()
@@ -32,8 +34,10 @@ pc.defineParameter("image", "Disk Image",
                    "Specify the base disk image that all the nodes of the cluster " +
                    "should be booted with.")
 
-pc.defineParameter("hardware_type", "Hardware Type",
+pc.defineParameter("worker_hardware_type", "Worker Hardware Type",
                    portal.ParameterType.NODETYPE, worker_hardware_types[0], worker_hardware_types)
+pc.defineParameter("agg_hardware_type", "Aggregator Hardware Type",
+                   portal.ParameterType.NODETYPE, agg_hardware_types[0], agg_hardware_types)
 
 pc.defineParameter("username", "Username",
                    portal.ParameterType.STRING, "", None,
@@ -166,7 +170,7 @@ for i in range(int(params.num_tor)/2):
 # Setup the cluster one node at a time.
 for idx, host in enumerate(hostnames):
     node = request.RawPC(host)
-    node.hardware_type = params.hardware_type if host.startswith('worker') else c8220[0]
+    node.worker_hardware_type = params.worker_hardware_type if host.startswith('worker') else params.agg_hardware_type
     node.disk_image = urn.Image(cloudlab.Utah, "emulab-ops:%s" % params.image)
 
     if (host == HOSTNAME_JUMPHOST):
@@ -202,7 +206,7 @@ for idx, host in enumerate(hostnames):
 for idx, host in enumerate(aggnames):
     node = request.RawPC(host)
     node.routable_control_ip = False
-    node.hardware_type = c8220[0]
+    node.worker_hardware_type = params.agg_hardware_type[0]
     node.disk_image = urn.Image(cloudlab.Utah, "emulab-ops:%s" % params.image)
 
     node.addService(pg.Execute(shell="sh",
