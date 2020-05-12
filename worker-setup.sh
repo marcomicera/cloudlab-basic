@@ -5,7 +5,7 @@
 # Get the absolute path of this script on the system.
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 
-exec > >(tee "$SCRIPTPATH/agg.log") 2>&1
+exec > >(tee "$SCRIPTPATH/system.log") 2>&1
 
 # Echo all the args so we can see how this script was invoked in the logs.
 echo -e "\n===== SCRIPT PARAMETERS ====="
@@ -13,18 +13,16 @@ echo $@
 echo
 
 # === Parameters decided by profile.py ===
-# RCNFS partition that will be exported via NFS and used as a shared home
-# Account in which various software should be setup.
-CLOUDLAB_USER=$1
-
-# === Paarameters decided by this script. ===
-# Directory where the NFS partition will be mounted on NFS clients
-
+# partition that will be exported via NFS and used as a shared home
+# directory for cluster users.
+NODE_LOCAL_STORAGE_DIR=$1
+CLOUDLAB_USER=$2
 
 # Other variables
-KERNEL_RELEASE=`uname -r`
-UBUNTU_RELEASE=`lsb_release --release | awk '{print $2}'`
+NODES_TXT="nodes.txt"
 USER_EXP="ubuntu"
+HOSTNAME_EXP_CONTROLLER="expctrl"
+
 
 # === Here goes configuration that's performed on every boot. ===
 
@@ -37,18 +35,22 @@ USER_EXP="ubuntu"
 # then it should go inside this if statement.
 if [ -f /local/setup_done ]
 then
-
+  echo "setup already done"
   exit 0
 fi
 
 # === Here goes configuration that happens once on the first boot. ===
 
+
 # === Software dependencies that need to be installed. ===
 # Common utilities
 echo -e "\n===== INSTALLING COMMON UTILITIES ====="
 apt-get update
-apt-get --assume-yes install vim htop bmon whois
-# openvswitch-switch
+apt-get --assume-yes install mosh vim tmux pdsh tree axel htop ctags whois
+echo -e "\n===== INSTALLING NFS PACKAGES ====="
+apt-get --assume-yes install nfs-kernel-server nfs-common
+echo -e "\n===== INSTALLING basic PACKAGES ====="
+apt-get --assume-yes install python2.7 python-requests openjdk-8-jre ack-grep python-minimal  iperf3
 echo -e "\n===== INSTALLING Docker ====="
 apt-get --assume-yes install docker.io
 gpasswd -a "$USER" docker
@@ -59,7 +61,8 @@ useradd -p `mkpasswd "test"` -d /home/"$USER_EXP" -m -g users -s /bin/bash "$USE
 passwd -d $USER_EXP
 gpasswd -a $USER_EXP root
 
-#chown -R "$USER_EXP:" "$NODE_LOCAL_STORAGE_DIR"
+chown -R "$USER_EXP:" "$NODE_LOCAL_STORAGE_DIR"
+
 
 # === Configuration settings for all machines ===
 # Make vim the default editor.
@@ -75,7 +78,7 @@ EOM
 
 # Change default shell to bash for all users on all machines
 echo -e "\n===== CHANGE USERS SHELL TO BASH ====="
-for user in $(ls /users/)
+for user in $(ls /home/)
 do
   chsh -s /bin/bash $user
 done
@@ -94,6 +97,22 @@ chown $USER_EXP: $ssh_dir/authorized_keys
 chown -R $USER_EXP: $ssh_dir
 chmod 644 $ssh_dir/authorized_keys
 
+# Add machines to /etc/hosts
+echo -e "\n===== ADDING HOSTS TO /ETC/HOSTS ====="
+hostArray=("$HOSTNAME_EXP_CONTROLLER")
+host="worker"
+hostArray=("${hostArray[@]}" "$host")
+
+for host in ${hostArray[@]}
+do
+  while ! nc -z -v -w5 $host 22
+  do
+    sleep 1
+    echo "Waiting for $host to come up..."
+  done
+  # ctrlip localip hostname
+  echo $(getent hosts $host | awk '{ print $1 ; exit }')" "$(getent hosts $host | awk '{ print $1 ; exit }')" $host"  >> /home/$USER_EXP/$NODES_TXT
+done
 
 # Mark that setup has finished. This script is actually run again after a
 # reboot, so we need to mark that we've already setup this machine and catch
